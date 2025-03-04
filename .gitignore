@@ -15,6 +15,7 @@ __pycache__/
 **/weights
 **/ckpt
 .vscode
+**/.idea
 
 # Carla PythonAPI binding
 CARLA_0.9.15_PythonAPI.tar.gz
@@ -26,3 +27,7 @@ PythonAPI
 **/bin
 **/fed-gen
 **/*.lft
+
+# Log Files
+**/*.xlsx
+**/*.png
