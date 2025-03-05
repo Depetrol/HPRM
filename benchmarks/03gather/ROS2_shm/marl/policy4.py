@@ -21,8 +21,7 @@ class Policy4(Node):
             10)
         self.subscription  # prevent unused variable warning
         self.shm = None
-        self.size = 50000164
-
+    
     def serialization(self, val):
         if self.shm:
             self.shm.close()
@@ -36,21 +35,21 @@ class Policy4(Node):
         return pickle.dumps(self.shm.name)
 
     def deserialization(self, memory_name):
-        local_shm = shared_memory.SharedMemory(name=pickle.loads(memory_name))
+        local_shm = shared_memory.SharedMemory(name=memory_name)
         data = pickle.loads(local_shm.buf[:self.size])
-        n_rows = 62500*50
-        array = np.frombuffer(data, dtype=np.float64).reshape(n_rows, 2)
+        array = np.frombuffer(data, dtype=np.float64).reshape(self.n_rows, 2)
         return array
 
     def listener_callback(self, msg):
-        received_np_array = self.deserialization(msg.data)
+        shm_name, self.size, self.n_rows = pickle.loads(msg.data)
+        received_np_array = self.deserialization(shm_name)
         time.sleep(0.5)
         self.send_message(received_np_array)
 
     def send_message(self, val):
         msg = Image()
         msg.data = self.serialization(val)
-        print("policy 4:" + str(msg.data))
+        print("policy 1:" + str(msg.data))
         self.publisher_.publish(msg)
 
 

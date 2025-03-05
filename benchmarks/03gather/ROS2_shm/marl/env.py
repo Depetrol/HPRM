@@ -6,7 +6,7 @@ import numpy as np
 from sensor_msgs.msg import Image
 import pickle
 from multiprocessing import shared_memory
-
+import os
 
 class Env(Node):
     def __init__(self):
@@ -29,14 +29,13 @@ class Env(Node):
 
         # Simulation
         self.round_num = 0
-        self.start_time = None
-        self.prev_time = None
         self.shm = None
-        self.size = 50000164
 
         # Create the NumPy array
-        self.n_rows = 62500*50  # 62500 rows is 1MB, 5MB, 10MB, 25MB
+        self.object_size = 50
+        self.n_rows = 62500 * self.object_size  # 62500 rows is 1MB
         val = np.random.random((self.n_rows, 2))  # 2 columns for x and y
+        self.prev_time = self.start_time = time.time()
         self.send_message(val)
 
     def callback(self, p1, p2, p3, p4):
@@ -45,19 +44,29 @@ class Env(Node):
         d3 = self.deserialization(p3.data)
         d4 = self.deserialization(p4.data)
 
-        # first round
-        if int(self.round_num) == 0:
-            self.start_time = time.time()
-            self.prev_time = self.start_time
-
+        cur_time = time.time()
         # print round number
-        print("Episode: "+str(self.round_num))
         self.round_num += 1
+        print("Episode: "+str(self.round_num))
 
         # print Time Taken
-        cur_time = time.time()
-        print(f"Time taken: {cur_time - self.start_time:.4f} seconds")
-        print(f"Overhead: {cur_time - self.prev_time - 0.5:.4f} seconds\n")
+        print(f"Time taken: {cur_time - self.start_time:.5f} seconds")
+        print(f"Overhead: {cur_time - self.prev_time - 0.5:.5f} seconds\n")
+        if self.round_num == 10:
+            if not os.path.exists("../../../logs/benchmarks"):
+                os.makedirs("../../../logs/benchmarks")
+            if os.path.exists("../../../logs/benchmarks/gather.pkl"):    
+                with open("../../../logs/benchmarks/gather.pkl", "rb") as f:
+                    results = pickle.load(f)
+            else:
+                results = {}
+            if "ros2_shm" not in results.keys():
+                results["ros2_shm"] = {} 
+            results["ros2_shm"][str(self.object_size)] = (cur_time - self.start_time) / self.round_num - 0.5,
+            with open("../../../logs/benchmarks/gather.pkl", "wb") as f:
+                pickle.dump(results, f)
+            print("Benchmarking done.")
+            return
         self.prev_time = cur_time
 
         self.send_message(d1)
@@ -68,11 +77,11 @@ class Env(Node):
             self.shm.unlink()
 
         serialized_array = pickle.dumps(val)
-        print(len(serialized_array))
+        self.size = len(serialized_array)
         # Create and Write shared memory
         self.shm = shared_memory.SharedMemory(create=True, size=self.size)
         self.shm.buf[:self.size] = serialized_array
-        return pickle.dumps(self.shm.name)
+        return pickle.dumps((self.shm.name, self.size, self.n_rows))
 
     def deserialization(self, memory_name):
         local_shm = shared_memory.SharedMemory(name=pickle.loads(memory_name))

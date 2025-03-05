@@ -28,6 +28,11 @@ PythonAPI
 **/fed-gen
 **/*.lft
 
+# ROS2
+**/build
+**/install
+**/log
+
 # Log Files
 **/*.xlsx
 **/*.png

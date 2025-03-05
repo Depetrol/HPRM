@@ -1,5 +1,4 @@
 target Python {
-  tracing: true,
   coordination: decentralized
 }
 
@@ -38,11 +37,9 @@ preamble {=
       return data
 =}
 
-reactor clientReactor(STP_offset = 10000 s) {
+reactor clientReactor(STP_offset = forever){
   input global_parameters
   output updated_parameters
-
-  reaction(startup) {=  =}
 
   reaction(global_parameters) -> updated_parameters {=
     data_pair = global_parameters.value
@@ -54,21 +51,21 @@ reactor clientReactor(STP_offset = 10000 s) {
   =}
 }
 
-reactor serverReactor(STP_offset = 10000 s) {
+reactor serverReactor{
   output global_parameters
   input[4] updated_parameters
   state round_num
   state start_time
   state prev_time
+  state object_size = 50
 
   reaction(startup) -> global_parameters {=
     self.round_num = 0
     self.results = [0] * 4
-    self.start_time = None
-    self.prev_time = None
-    n_rows = 62500  # 62500 rows is 1MB
+    n_rows = 62500 * self.object_size  # 62500 rows is 1MB
     val = np.random.random((n_rows, 2))  # 2 columns for x and y
     id  = serialization(session, val)
+    self.prev_time = self.start_time = time.time()
     global_parameters.set(id)
   =}
 
@@ -78,30 +75,38 @@ reactor serverReactor(STP_offset = 10000 s) {
         data_pair = updated_parameters[i].value
         self.results[i] = deserialization(session, data_pair[0], data_pair[1])
 
-    # Check and set the benchmark start time for the first round
-    if self.round_num == 0:
-        self.start_time = time.time()
-        self.prev_time = self.start_time
-
-    # print round number
-    print("Episode: "+str(self.round_num))
-    self.round_num += 1
-
-    # print Time Taken
     cur_time = time.time()
+    self.round_num += 1
+    print("Episode: "+str(self.round_num))
     print(f"Time taken: {cur_time - self.start_time:.5f} seconds")
     print(f"Overhead: {cur_time - self.prev_time - 0.5:.5f} seconds\n")
+    if self.round_num == 10:
+        if not os.path.exists("./logs/benchmarks"):
+            os.makedirs("./logs/benchmarks")
+        if os.path.exists("./logs/benchmarks/gather.pkl"):    
+            with open("./logs/benchmarks/gather.pkl", "rb") as f:
+                results = pickle.load(f)
+        else:
+            results = {}
+        if "hprm_decentralized" not in results.keys():
+            results["hprm_decentralized"] = {} 
+        results["hprm_decentralized"][str(self.object_size)] = (cur_time - self.start_time) / self.round_num - 0.5,
+        with open("./logs/benchmarks/gather.pkl", "wb") as f:
+            pickle.dump(results, f)
+        print("Benchmark done.")
+        request_stop()
+        return
     self.prev_time = cur_time
 
     # Update the global parameters with the results from the first client for the next round
     id = serialization(session, self.results[0])
     global_parameters.set(id)
-  =}
+  =} STP(forever){==}
 }
 
 federated reactor {
   client = new[4] clientReactor()
   server = new serverReactor()
-  (server.global_parameters)+ -> client.global_parameters after 0
-  client.updated_parameters -> server.updated_parameters
+  (server.global_parameters)+ -> client.global_parameters 
+  client.updated_parameters -> server.updated_parameters after 0
 }

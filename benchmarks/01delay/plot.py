@@ -2,16 +2,10 @@ import pickle
 import os
 import matplotlib.pyplot as plt
 
-# Load the pickle file
-pickle_file_path = "./logs/benchmarks/delay.pkl"
-
-with open(pickle_file_path, "rb") as f:
+with open("./logs/benchmarks/delay.pkl", "rb") as f:
     results = pickle.load(f)
 
-# Sort object sizes for plotting
 object_sizes = sorted(results.keys())
-
-# Extract times
 plasma_times = [results[size]["plasma"] for size in object_sizes]
 shared_times = [results[size]["shared_memory"] for size in object_sizes]
 
@@ -25,10 +19,7 @@ shared_throughputs = [
     for size in object_sizes
 ]
 
-# Create figure
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
-
-# Plot Time vs. Object Size
 ax1.plot(object_sizes, plasma_times, marker='o', label='Plasma')
 ax1.plot(object_sizes, shared_times, marker='x', label='Shared Memory')
 
@@ -37,7 +28,6 @@ ax1.set_xlabel("Object Size (MB)")
 ax1.set_ylabel("Time (seconds)")
 ax1.legend()
 
-# Plot Throughput vs. Object Size
 ax2.plot(object_sizes, plasma_throughputs, marker='o', label='Plasma Throughput')
 ax2.plot(object_sizes, shared_throughputs, marker='x', label='Shared Memory Throughput')
 

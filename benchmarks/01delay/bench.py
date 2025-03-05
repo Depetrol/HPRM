@@ -85,13 +85,10 @@ def benchmark(object_size_mb, n_iters = 50):
 # Start plasma before running: `plasma_store -m 4000000000 -s /tmp/plasma`
 if __name__ == "__main__":
     sizes = [1, 5, 10, 25, 50]
-
-    # benchmark and save to pickle
     results = {}
     for size in sizes:
         plasma_time, shared_memory_time = benchmark(size)
         results[size] = {"plasma": plasma_time, "shared_memory": shared_memory_time}
-    # Create file if not exists
     if not os.path.exists("./logs/benchmarks"):
         os.makedirs("./logs/benchmarks")
     with open("./logs/benchmarks/delay.pkl", "wb") as f:

@@ -5,7 +5,7 @@ from message_filters import TimeSynchronizer, Subscriber
 import numpy as np
 from sensor_msgs.msg import Image
 import pickle
-
+import os
 
 class Env(Node):
     def __init__(self):
@@ -28,12 +28,12 @@ class Env(Node):
 
         # Simulation
         self.round_num = 0
-        self.start_time = None
-        self.prev_time = None
 
         # Create the NumPy array
-        n_rows = 62500  # 62500 rows is 1MB
+        self.object_size = 1
+        n_rows = 62500 * self.object_size  # 62500 rows is 1MB
         val = np.random.random((n_rows, 2))  # 2 columns for x and y
+        self.prev_time = self.start_time = time.time()
         self.send_message(val)
 
     def callback(self, p1, p2, p3, p4):
@@ -42,19 +42,29 @@ class Env(Node):
         d3 = pickle.loads(p3.data)
         d4 = pickle.loads(p4.data)
 
-        # first round
-        if int(self.round_num) == 0:
-            self.start_time = time.time()
-            self.prev_time = self.start_time
-
+        cur_time = time.time()
         # print round number
-        print("Episode: "+str(self.round_num))
         self.round_num += 1
+        print("Episode: "+str(self.round_num))
 
         # print Time Taken
-        cur_time = time.time()
         print(f"Time taken: {cur_time - self.start_time:.5f} seconds")
         print(f"Overhead: {cur_time - self.prev_time - 0.5:.5f} seconds\n")
+        if self.round_num == 10:
+            if not os.path.exists("../../../logs/benchmarks"):
+                os.makedirs("../../../logs/benchmarks")
+            if os.path.exists("../../../logs/benchmarks/gather.pkl"):    
+                with open("../../../logs/benchmarks/gather.pkl", "rb") as f:
+                    results = pickle.load(f)
+            else:
+                results = {}
+            if "ros2" not in results.keys():
+                results["ros2"] = {} 
+            results["ros2"][str(self.object_size)] = (cur_time - self.start_time) / self.round_num - 0.5,
+            with open("../../../logs/benchmarks/gather.pkl", "wb") as f:
+                pickle.dump(results, f)
+            print("Benchmarking done.")
+            return
         self.prev_time = cur_time
 
         self.send_message(d1)
