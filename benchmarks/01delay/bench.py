@@ -84,6 +84,11 @@ def benchmark(object_size_mb, n_iters = 50):
 
 # Start plasma before running: `plasma_store -m 4000000000 -s /tmp/plasma`
 if __name__ == "__main__":
+    # Warmup
+    sizes = [1, 5, 10, 25, 50]
+    for size in sizes:
+        benchmark(size)
+
     sizes = [1, 5, 10, 25, 50]
     results = {}
     for size in sizes:

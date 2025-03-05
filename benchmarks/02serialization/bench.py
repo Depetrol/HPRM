@@ -45,6 +45,10 @@ def benchmark(protocol):
     _, deserialize_time = deserialize_data(pickled_data, protocol, buffers)
     return serialize_time, deserialize_time
 
+# warmup
+benchmark(0)
+benchmark(4)
+benchmark(5)
 
 # Perform benchmarks
 serialize_time_0, deserialize_time_0 = benchmark(0)
